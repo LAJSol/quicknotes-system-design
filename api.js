@@ -31,7 +31,7 @@ async function request(url, options = {}) {
   return { status: response.status, data: data };
 }
 
-// ---------- 3. The API calls: GET and POST ----------
+// ---------- 3. The three API calls: GET, POST and DELETE ----------
 async function fetchNotes() {
   return request(`${API_URL}?_limit=10`); // GET: load 10 notes
 }
@@ -44,6 +44,10 @@ async function createNote(title, body) {
   });
 }
 
+async function removeNote(id) {
+  return request(`${API_URL}/${id}`, { method: "DELETE" }); // DELETE: remove
+}
+
 // ---------- 4. Showing messages and drawing notes ----------
 // type is "loading", "success" or "error" (it picks the style in style.css)
 function setStatus(message, type = "") {
@@ -51,10 +55,13 @@ function setStatus(message, type = "") {
   statusText.className = type;
 }
 
-// Disable the buttons while a request is running
+// Disable every button while a request is running
 function setBusy(isBusy) {
   loadBtn.disabled = isBusy;
   submitBtn.disabled = isBusy;
+  document.querySelectorAll(".delete-btn").forEach((button) => {
+    button.disabled = isBusy;
+  });
 }
 
 function createNoteElement(note) {
@@ -73,7 +80,14 @@ function createNoteElement(note) {
     content.appendChild(body);
   }
 
+  const del = document.createElement("button");
+  del.type = "button";
+  del.textContent = "Delete";
+  del.classList.add("delete-btn");
+  del.addEventListener("click", () => handleDelete(note));
+
   li.appendChild(content);
+  li.appendChild(del);
   return li;
 }
 
@@ -90,6 +104,13 @@ function render() {
   }
 
   notes.forEach((note) => list.appendChild(createNoteElement(note)));
+}
+
+function removeFromList(note) {
+  // Remove by the note object itself, not by id: JSONPlaceholder gives EVERY
+  // created note the same id (101), so filtering by id would remove them all.
+  notes = notes.filter((item) => item !== note);
+  render();
 }
 
 function validateTitle(title) {
@@ -154,6 +175,39 @@ async function handleCreate(event) {
   } catch (error) {
     setStatus("Could not create the note. Please try again.", "error");
     console.error(error);
+  } finally {
+    setBusy(false);
+  }
+}
+
+// HOW DELETE WORKS WITH JSONPLACEHOLDER
+// JSONPlaceholder is a practice API: it answers POST, PATCH and DELETE like a
+// real server but does not really save anything. A note we create comes back
+// with id 101, yet that note was never stored. So:
+//   - For notes loaded from the server (ids 1 to 10), DELETE succeeds and we
+//     remove the note from the page.
+//   - For a note we created here, the server might answer 404 ("I have no
+//     note 101"). That is expected, so we still remove the note from the page
+//     and tell the user. Any other error is shown as a normal error.
+async function handleDelete(note) {
+  setStatus("Deleting note...", "loading");
+  setBusy(true);
+
+  try {
+    const result = await removeNote(note.id);
+    removeFromList(note);
+    setStatus(`Note deleted (status ${result.status}).`, "success");
+  } catch (error) {
+    if (note.createdHere && error.status === 404) {
+      removeFromList(note);
+      setStatus(
+        "Note removed. The practice server never stored it, so it answered 404.",
+        "success",
+      );
+    } else {
+      setStatus("Could not delete the note. Please try again.", "error");
+      console.error(error);
+    }
   } finally {
     setBusy(false);
   }
