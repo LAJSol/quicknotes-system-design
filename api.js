@@ -1,14 +1,19 @@
-// 1. Settings and the elements we need
+// ---------- 1. Settings and the elements we need ----------
 const API_URL = "https://jsonplaceholder.typicode.com/posts";
+const MAX_TITLE_LENGTH = 100;
 
 const loadBtn = document.querySelector("#load-btn");
 const statusText = document.querySelector("#status");
+const form = document.querySelector("#noteform");
+const titleInput = document.querySelector("#title-input");
+const bodyInput = document.querySelector("#body-input");
+const submitBtn = document.querySelector("#submit-btn");
 const list = document.querySelector("#notes-list");
 
 // The notes currently shown on the page
 let notes = [];
 
-// 2. One reusable function for every request
+// ---------- 2. One reusable function for every request ----------
 // Calls fetch, throws an error if the status is not 200-299, and returns
 // the status code together with the parsed JSON data.
 async function request(url, options = {}) {
@@ -26,21 +31,30 @@ async function request(url, options = {}) {
   return { status: response.status, data: data };
 }
 
-// 3. The API call: GET
+// ---------- 3. The API calls: GET and POST ----------
 async function fetchNotes() {
   return request(`${API_URL}?_limit=10`); // GET: load 10 notes
 }
 
-// 4. Showing messages and drawing notes
+async function createNote(title, body) {
+  return request(API_URL, {
+    method: "POST", // POST: create
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title: title, body: body, userId: 1 }),
+  });
+}
+
+// ---------- 4. Showing messages and drawing notes ----------
 // type is "loading", "success" or "error" (it picks the style in style.css)
 function setStatus(message, type = "") {
   statusText.textContent = message;
   statusText.className = type;
 }
 
-// Disable the button while a request is running
+// Disable the buttons while a request is running
 function setBusy(isBusy) {
   loadBtn.disabled = isBusy;
+  submitBtn.disabled = isBusy;
 }
 
 function createNoteElement(note) {
@@ -78,7 +92,15 @@ function render() {
   notes.forEach((note) => list.appendChild(createNoteElement(note)));
 }
 
-// 5. Event handler: the request is wrapped in try / catch / finally
+function validateTitle(title) {
+  if (title === "") return "Please enter a title.";
+  if (title.length > MAX_TITLE_LENGTH) {
+    return `The title must be ${MAX_TITLE_LENGTH} characters or fewer.`;
+  }
+  return "";
+}
+
+// ---------- 5. Event handlers: every request is wrapped in try / catch / finally ----------
 async function handleLoad() {
   setStatus("Loading notes...", "loading");
   setBusy(true);
@@ -101,8 +123,45 @@ async function handleLoad() {
   }
 }
 
-// 6. Listen for the button
-loadBtn.addEventListener("click", handleLoad);
+async function handleCreate(event) {
+  event.preventDefault();
 
-// 7. Draw the empty state when the page first loads
+  const title = titleInput.value.trim();
+  const body = bodyInput.value.trim(); // the body is optional
+
+  const problem = validateTitle(title);
+  if (problem) {
+    setStatus(problem, "error");
+    return;
+  }
+
+  setStatus("Creating note...", "loading");
+  setBusy(true);
+
+  try {
+    const result = await createNote(title, body);
+    const created = { ...result.data, createdHere: true };
+
+    notes.unshift(created); // newest note goes to the top
+    render();
+    setStatus(
+      `Note created (status ${result.status}, id ${created.id}).`,
+      "success",
+    );
+
+    titleInput.value = "";
+    bodyInput.value = "";
+  } catch (error) {
+    setStatus("Could not create the note. Please try again.", "error");
+    console.error(error);
+  } finally {
+    setBusy(false);
+  }
+}
+
+// ---------- 6. Listen for the button and the form ----------
+loadBtn.addEventListener("click", handleLoad);
+form.addEventListener("submit", handleCreate);
+
+// ---------- 7. Draw the empty state when the page first loads ----------
 render();

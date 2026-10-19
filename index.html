@@ -20,6 +20,23 @@
         <p id="status" role="status"></p>
         <ul id="notes-list"></ul>
       </section>
+
+      <section>
+        <h2>Create a note</h2>
+        <form id="noteform">
+          <label for="title-input">Title</label>
+          <input type="text" id="title-input" placeholder="Note title" />
+
+          <label for="body-input">Body (optional)</label>
+          <textarea
+            id="body-input"
+            rows="4"
+            placeholder="Write something..."
+          ></textarea>
+
+          <button type="submit" id="submit-btn">Add note</button>
+        </form>
+      </section>
     </main>
 
     <footer>
