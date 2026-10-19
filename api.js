@@ -1,9 +1,9 @@
 // 1. Settings and the elements we need
+const API_URL = "https://jsonplaceholder.typicode.com/posts";
+
 const loadBtn = document.querySelector("#load-btn");
 const statusText = document.querySelector("#status");
 const list = document.querySelector("#notes-list");
-
-const API_URL = "https://jsonplaceholder.typicode.com/posts";
 
 // The notes currently shown on the page
 let notes = [];
